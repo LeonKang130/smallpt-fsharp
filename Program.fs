@@ -2,8 +2,8 @@
 open System.Numerics
 open System.IO
 open System.Diagnostics
-open System.Threading.Tasks
 open System.Threading
+open System.Threading.Tasks
 
 type Ray =
     struct
@@ -40,17 +40,17 @@ type Sphere =
             let eps = 1e-3f
             let f = ray.origin - this.center
             let a = ray.direction.LengthSquared()
-            let b = - Vector3.Dot(f, ray.direction)
+            let b = -Vector3.Dot(f, ray.direction)
             let c = f.LengthSquared() - this.radius * this.radius
             let delta = this.radius * this.radius - (f + b / a * ray.direction).LengthSquared()
-            if delta < 0.0f then
-                0.0f
+            if delta < 0f then
+                0f
             else
                 let q = b + float32 (sign b) * sqrt (a * delta)
                 let t0, t1 = c / q, q / a
                 if t0 > eps then t0
                 else if t1 > eps then t1
-                else 0.0f
+                else 0f
 
     end
 
@@ -85,14 +85,13 @@ let radiance (ray: inref<Ray>) (rng: Random) : Vector3 =
     let mutable f = Vector3.One
     let mutable r = Vector3.Zero
     while depth <= maxDepth do
-        depth <- depth + 1
         if not (intersect &ray &t &id) then
             depth <- maxDepth + 1
         else
             let obj = spheres[id]
             let x = ray.origin + ray.direction * t
             let n = Vector3.Normalize(x - obj.center)
-            let nl = if Vector3.Dot(n, ray.direction) < 0.0f then n else -n
+            let nl = if Vector3.Dot(n, ray.direction) < 0f then n else -n
             r <- r + f * obj.emission
             f <- f * obj.color
             let p = max f.X (max f.Y f.Z)
@@ -103,52 +102,50 @@ let radiance (ray: inref<Ray>) (rng: Random) : Vector3 =
                 f <- if depth > rrDepth then f / p else f
                 match obj.material with
                 | Material.Diffuse ->
-                    let r1 = 2.0f * MathF.PI * rng.NextSingle()
+                    let r1 = 2f * MathF.PI * rng.NextSingle()
                     let r2 = rng.NextSingle()
                     let r2s = sqrt r2
-                    let w = nl
                     let u =
-                        if abs w.X > 0.1f then
-                            Vector3(0f, 1f, 0f)
+                        if abs nl.X > 0.1f then
+                            Vector3.UnitY
                         else
-                            Vector3(1f, 0f, 0f)
-                        |> fun x -> Vector3.Cross(x, w)
+                            Vector3.UnitX
+                        |> fun x -> Vector3.Cross(x, nl)
                         |> Vector3.Normalize
-                    let v = Vector3.Cross(w, u)
-                    let d = u * (cos r1) * r2s + v * (sin r1) * r2s + w * sqrt (1.0f - r2)
+                    let v = Vector3.Cross(nl, u)
+                    let d = u * (cos r1) * r2s + v * (sin r1) * r2s + nl * sqrt (1.0f - r2)
                     ray <- Ray(x + eps * nl, d)
                 | Material.Specular ->
                     let d = ray.direction - n * 2f * Vector3.Dot(n, ray.direction)
                     ray <- Ray(x + eps * nl, d)
                 | _ ->
                     let rdir = ray.direction - n * 2f * Vector3.Dot(n, ray.direction)
-                    let reflectRay = Ray(x + eps * nl, rdir)
-                    let into = Vector3.Dot(n, nl) > 0.0f
-                    let nc, nt = 1.0f, 1.5f
+                    let into = Vector3.Dot(n, nl) > 0f
+                    let nc, nt = 1f, 1.5f
                     let nnt = if into then nc / nt else nt / nc
                     let ddn = Vector3.Dot(ray.direction, nl)
-                    let cos2t = 1.0f - nnt * nnt * (1.0f - ddn * ddn)
+                    let cos2t = 1f - nnt * nnt * (1f - ddn * ddn)
                     if cos2t < 0f then
-                        ray <- reflectRay
+                        ray <- Ray(x + eps * nl, rdir)
                     else
                         let tdir =
-                            (ray.direction * nnt) - (n * (if into then 1.0f else -1.0f) * (ddn * nnt + sqrt cos2t))
-                        let refractRay = Ray(x - eps * nl, tdir)
+                            (ray.direction * nnt) - (n * (if into then 1f else -1f) * (ddn * nnt + sqrt cos2t))
                         let a, b = nt - nc, nt + nc
                         let R0, c = a * a / (b * b), 1f - (if into then -ddn else Vector3.Dot(tdir, n))
-                        let Re = R0 + (1.0f - R0) * c * c * c * c * c
-                        let Tr = 1.0f - Re
+                        let Re = R0 + (1f - R0) * c * c * c * c * c
+                        let Tr = 1f - Re
                         let P = 0.25f + 0.5f * Re
                         if rng.NextSingle() < P then
-                            ray <- reflectRay
+                            ray <- Ray(x + eps * nl, rdir)
                             f <- f * Re / P
                         else
-                            ray <- refractRay
-                            f <- f * Tr / (1.0f - P)
+                            ray <- Ray(x - eps * nl, tdir)
+                            f <- f * Tr / (1f - P)
+        depth <- depth + 1
     r
 
 let inline toInt (x: float32) =
-    int (MathF.Pow(x, 1f / 2.2f) * 255.0f + 0.5f)
+    int (MathF.Pow(x, 1f / 2.2f) * 255f + 0.5f)
 
 [<EntryPoint>]
 let main (argv: string[]) =
@@ -157,36 +154,36 @@ let main (argv: string[]) =
     let inline renderRow (y: int) (rng: Random) =
         let cam =
             Ray(Vector3(50f, 52f, 295.6f), Vector3.Normalize(Vector3(0f, -0.042612f, -1f)))
-        let cx = Vector3(float32 w * 0.5135f / float32 h, 0.0f, 0.0f)
+        let cx = Vector3(float32 w * 0.5135f / float32 h, 0f, 0f)
         let cy = Vector3.Normalize(Vector3.Cross(cx, cam.direction)) * 0.5135f
         for x = 0 to w - 1 do
             for sy = 0 to 1 do
                 for sx = 0 to 1 do
                     let mutable r = Vector3.Zero
                     for s = 0 to samples - 1 do
-                        let r1 = 2.0f * rng.NextSingle()
+                        let r1 = 2f * rng.NextSingle()
                         let dx =
-                            if r1 < 1.0f then
-                                (sqrt r1) - 1.0f
+                            if r1 < 1f then
+                                (sqrt r1) - 1f
                             else
-                                1.0f - (sqrt (2.0f - r1))
+                                1f - (sqrt (2f - r1))
 
-                        let r2 = 2.0f * rng.NextSingle()
+                        let r2 = 2f * rng.NextSingle()
 
                         let dy =
-                            if r2 < 1.0f then
-                                (sqrt r2) - 1.0f
+                            if r2 < 1f then
+                                (sqrt r2) - 1f
                             else
-                                1.0f - (sqrt (2.0f - r2))
+                                1f - (sqrt (2f - r2))
 
                         let d =
                             cam.direction
-                            + cx * (((float32 sx + 0.5f + dx) / 2.0f + float32 x) / float32 w - 0.5f)
-                            + cy * (((float32 sy + 0.5f + dy) / 2.0f + float32 y) / float32 h - 0.5f)
+                            + cx * (((float32 sx + 0.5f + dx) / 2f + float32 x) / float32 w - 0.5f)
+                            + cy * (((float32 sy + 0.5f + dy) / 2f + float32 y) / float32 h - 0.5f)
                             |> Vector3.Normalize
 
                         let ray = Ray(cam.origin + 140f * d, d)
-                        r <- r + (radiance &ray rng) / float32 samples
+                        r <- r + (radiance &ray rng) * (1f / float32 samples)
                     let i = x + (h - 1 - y) * w
                     c[i] <- c[i] + 0.25f * Vector3.Clamp(r, Vector3.Zero, Vector3.One)
     let stopwatch = Stopwatch.StartNew()
@@ -202,7 +199,7 @@ let main (argv: string[]) =
     stopwatch.Stop()
     printfn $"Elapsed time: %A{stopwatch.Elapsed}"
     use f = File.CreateText "image.ppm"
-    f.Write $"P3\n{w} {h}\n{255}\n"
+    f.Write $"P3\n{w} {h}\n255\n"
     for i = 0 to c.Length - 1 do
         f.Write $"{toInt c[i].X} {toInt c[i].Y} {toInt c[i].Z} "
     0
