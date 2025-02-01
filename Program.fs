@@ -1,9 +1,11 @@
 ﻿open System
 open System.Numerics
 open System.IO
+open System.Runtime.CompilerServices
 open System.Threading.Tasks
 open System.Threading
 
+[<IsByRefLike>]
 type Ray =
     struct
         val origin: Vector3
@@ -35,7 +37,7 @@ type Sphere =
               color = color
               material = material }
 
-        member this.intersect(ray: Ray) : float32 =
+        member inline this.intersect(ray: Ray) : float32 =
             let eps = 1e-3f
             let f = ray.origin - this.center
             let a = ray.direction.LengthSquared()
@@ -64,23 +66,23 @@ let spheres =
        Sphere(16.5f, Vector3(73f, 16.5f, 78f), Vector3.Zero, Vector3(0.999f, 0.999f, 0.999f), Material.Refractive)
        Sphere(600f, Vector3(50f, 681.6f - 0.27f, 81.6f), Vector3(12f, 12f, 12f), Vector3.Zero, Material.Diffuse) |]
 
-let intersect (ray: Ray) (t: byref<float32>) (id: byref<int32>) : bool =
+let inline intersect (ray: Ray) (t: byref<float32>) (id: byref<int32>) : bool =
     let inf = Single.PositiveInfinity
     t <- inf
 
     for i = 0 to spheres.Length - 1 do
         let d = spheres[i].intersect ray
 
-        if d <> 0.0f && d < t then
+        if d <> 0f && d < t then
             t <- d
             id <- i
 
     t <> inf
 
-let rec radiance (ray: Ray) (depth: int) (rng: Random) =
-    let mutable t = 0.0f
+let rec radiance (ray: Ray) (depth: int) (rng: Random) : Vector3 =
+    let mutable t = 0f
     let mutable id = 0
-    let maxDepth = 12
+    let maxDepth = 8
     let eps = 1e-3f
 
     if depth > maxDepth || not (intersect ray &t &id) then
@@ -122,10 +124,8 @@ let rec radiance (ray: Ray) (depth: int) (rng: Random) =
                 obj.emission + f * radiance (Ray(x + eps * nl, d)) depth rng
             | Material.Specular ->
                 let d = ray.direction - n * 2f * Vector3.Dot(n, ray.direction) |> Vector3.Normalize
-                obj.emission
-                + f
-                  * radiance (Ray(x + eps * nl, d)) depth rng
-            | Material.Refractive ->
+                obj.emission + f * radiance (Ray(x + eps * nl, d)) depth rng
+            | _ ->
                 let rdir = ray.direction - n * 2f * Vector3.Dot(n, ray.direction) |> Vector3.Normalize
                 let reflectRay = Ray(x + eps * nl, rdir)
                 let into = Vector3.Dot(n, nl) > 0.0f
@@ -147,9 +147,9 @@ let rec radiance (ray: Ray) (depth: int) (rng: Random) =
                     let Re = R0 + (1.0f - R0) * c * c * c * c * c
                     let Tr = 1.0f - Re
                     let P = 0.25f + 0.5f * Re
-                    let RP = Re * P
-                    let TP = Tr * (1.0f - P)
-
+                    let RP = Re / P
+                    let TP = Tr / (1.0f - P)
+                    (*
                     if depth > 2 then
                         if rng.NextSingle() < P then
                             obj.emission + f * RP * radiance reflectRay depth rng
@@ -159,20 +159,24 @@ let rec radiance (ray: Ray) (depth: int) (rng: Random) =
                         obj.emission
                         + f * Re * radiance reflectRay depth rng
                         + f * Tr * radiance refractRay depth rng
-            | _ -> ArgumentOutOfRangeException() |> raise
+                    *)
+                    if rng.NextSingle() < P then
+                        obj.emission + f * RP * radiance reflectRay depth rng
+                    else
+                        obj.emission + f * TP * radiance refractRay depth rng
 
-let toInt (x: float32) =
+let inline toInt (x: float32) =
     int (MathF.Pow(x, 1f / 2.2f) * 255.0f + 0.5f)
 
 [<EntryPoint>]
 let main (argv: string[]) =
-    let w, h, samples = 1024, 768, 64
-    let cam =
-        Ray(Vector3(50f, 52f, 295.6f), Vector3.Normalize(Vector3(0f, -0.042612f, -1f)))
-    let cx = Vector3(float32 w * 0.5135f / float32 h, 0.0f, 0.0f)
-    let cy = Vector3.Normalize(Vector3.Cross(cx, cam.direction)) * 0.5135f
+    let w, h, samples = 1024, 768, if argv.Length = 2 then int argv[1] else 64
     let c = Array.zeroCreate<Vector3> (w * h)
     let renderRow (y: int) (rng: Random) =
+        let cam =
+            Ray(Vector3(50f, 52f, 295.6f), Vector3.Normalize(Vector3(0f, -0.042612f, -1f)))
+        let cx = Vector3(float32 w * 0.5135f / float32 h, 0.0f, 0.0f)
+        let cy = Vector3.Normalize(Vector3.Cross(cx, cam.direction)) * 0.5135f
         for x = 0 to w - 1 do
             for sy = 0 to 1 do
                 for sx = 0 to 1 do
