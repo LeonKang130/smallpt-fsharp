@@ -3,6 +3,7 @@
 
 # Build Outputs
 bin/
+obj/
 
 # Program Outputs
 image.ppm
