@@ -1,0 +1,8 @@
+﻿# IDE Config
+.idea/
+
+# Build Outputs
+bin/
+
+# Program Outputs
+image.ppm
