@@ -41,16 +41,19 @@ type Sphere =
             let f = ray.origin - this.center
             let a = ray.direction.LengthSquared()
             let b = -Vector3.Dot(f, ray.direction)
-            let c = f.LengthSquared() - this.radius * this.radius
-            let delta = this.radius * this.radius - (f + b / a * ray.direction).LengthSquared()
+            let r2 = this.radius * this.radius
+            let c = f.LengthSquared() - r2
+            let delta = r2 - (f + b / a * ray.direction).LengthSquared()
             if delta < 0f then
                 0f
             else
-                let q = b + float32 (sign b) * sqrt (a * delta)
-                let t0, t1 = c / q, q / a
+                let q = b + MathF.CopySign(MathF.Sqrt (a * delta), b) 
+                let t0 = c / q
                 if t0 > eps then t0
-                else if t1 > eps then t1
-                else 0f
+                else
+                    let t1 = q / a
+                    if t1 > eps then t1
+                    else 0f
 
     end
 
@@ -66,14 +69,13 @@ let spheres =
        Sphere(600f, Vector3(50f, 681.6f - 0.27f, 81.6f), Vector3(12f, 12f, 12f), Vector3.Zero, Material.Diffuse) |]
 
 let inline intersect (ray: inref<Ray>) (t: byref<float32>) (id: byref<int32>) : bool =
-    let inf = Single.PositiveInfinity
-    t <- inf
+    t <- infinityf
     for i = 0 to spheres.Length - 1 do
         let d = spheres[i].intersect &ray
         if d <> 0f && d < t then
             t <- d
             id <- i
-    t <> inf
+    t <> infinityf
 
 let radiance (ray: inref<Ray>) (rng: Random) : Vector3 =
     let maxDepth = 8
@@ -104,7 +106,7 @@ let radiance (ray: inref<Ray>) (rng: Random) : Vector3 =
                 | Material.Diffuse ->
                     let r1 = 2f * MathF.PI * rng.NextSingle()
                     let r2 = rng.NextSingle()
-                    let r2s = sqrt r2
+                    let r2s = MathF.Sqrt r2
                     let u =
                         if abs nl.X > 0.1f then
                             Vector3.UnitY
@@ -114,7 +116,7 @@ let radiance (ray: inref<Ray>) (rng: Random) : Vector3 =
                         |> Vector3.Normalize
                     let v = Vector3.Cross(nl, u)
                     ray.origin <- x + eps * nl
-                    ray.direction <- u * (cos r1) * r2s + v * (sin r1) * r2s + nl * sqrt (1.0f - r2)
+                    ray.direction <- u * (cos r1) * r2s + v * (sin r1) * r2s + nl * MathF.Sqrt (1.0f - r2)
                 | Material.Specular ->
                     ray.origin <- x + eps * nl
                     ray.direction <- ray.direction - n * 2f * Vector3.Dot(n, ray.direction)
@@ -129,7 +131,7 @@ let radiance (ray: inref<Ray>) (rng: Random) : Vector3 =
                         ray.direction <- ray.direction - n * 2f * Vector3.Dot(n, ray.direction)
                     else
                         let tDir =
-                            (ray.direction * nnt) - (n * (if into then 1f else -1f) * (ddn * nnt + sqrt cos2t))
+                            (ray.direction * nnt) - (n * (if into then 1f else -1f) * (ddn * nnt + MathF.Sqrt cos2t))
                         let a, b = nt - nc, nt + nc
                         let R0, c = a * a / (b * b), 1f - (if into then -ddn else Vector3.Dot(tDir, n))
                         let Re = R0 + (1f - R0) * c * c * c * c * c
@@ -169,17 +171,17 @@ let main (argv: string[]) =
                         let r1 = 2f * rng.NextSingle()
                         let dx =
                             if r1 < 1f then
-                                (sqrt r1) - 1f
+                                (MathF.Sqrt r1) - 1f
                             else
-                                1f - (sqrt (2f - r1))
+                                1f - (MathF.Sqrt (2f - r1))
 
                         let r2 = 2f * rng.NextSingle()
 
                         let dy =
                             if r2 < 1f then
-                                (sqrt r2) - 1f
+                                (MathF.Sqrt r2) - 1f
                             else
-                                1f - (sqrt (2f - r2))
+                                1f - (MathF.Sqrt (2f - r2))
 
                         let d =
                             cam.direction
