@@ -146,8 +146,11 @@ let radiance (ray: inref<Ray>) (rng: Random) : Vector3 =
         depth <- depth + 1
     r
 
+[<Literal>]
+let gamma = 1.f / 2.2f
+
 let inline toInt (x: float32) =
-    int (MathF.Pow(x, 1f / 2.2f) * 255f + 0.5f)
+    int (MathF.Pow(x, gamma) * 255f + 0.5f)
 
 [<EntryPoint>]
 let main (argv: string[]) =
