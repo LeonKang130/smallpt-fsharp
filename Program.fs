@@ -15,7 +15,6 @@ type Ray =
               direction = direction }
     end
 
-[<Struct>]
 type Material =
     | Diffuse = 0
     | Specular = 1
